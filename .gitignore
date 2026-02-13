@@ -1,0 +1,37 @@
+# Environment variables and secrets
+.env
+*.env
+
+# Downloaded files (don't commit actual files)
+downloaded_files/
+extracted_text/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Token cache
+msal_token_cache.bin
+*.cache
+
+# Misc
+*.log
+.pytest_cache/
