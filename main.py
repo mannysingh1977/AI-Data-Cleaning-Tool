@@ -90,7 +90,7 @@ class SharePointExtractor:
         
         self.logger.info(f"Listing files (limit: {limit if limit else 'all'})...")
         
-        files = self.sp_client.get_all_files_recursive(
+        files = self.sp_client.list_my_drive_files(
             file_types=Config.SUPPORTED_FILE_TYPES,
             limit=limit
         )

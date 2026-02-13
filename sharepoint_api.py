@@ -71,48 +71,63 @@ class SharePointClient:
         limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
-        List files from the user's OneDrive.
-        
+        List files from the user's OneDrive, recursing into all folders.
+
         Args:
             file_types: List of file extensions to filter (e.g., ['docx', 'pdf'])
             limit: Maximum number of files to return (None for all)
-        
+
         Returns:
             List[Dict[str, Any]]: List of file metadata
         """
-        logger.info("Listing files from OneDrive...")
-        
+        logger.info("Listing files from OneDrive (recursive)...")
+
         if file_types is None:
             file_types = Config.SUPPORTED_FILE_TYPES
-        
+
         all_files = []
-        url = f"{self.base_url}/me/drive/root/children"
-        
-        # Use pagination to get all files
-        while url and (limit is None or len(all_files) < limit):
-            logger.debug(f"Fetching: {url}")
-            
-            response = self._make_request(url)
-            if not response:
-                break
-            
-            files = response.get("value", [])
-            
-            # Filter for files (not folders) and specific file types
-            for item in files:
-                if "file" in item:  # It's a file, not a folder
-                    file_name = item.get("name", "")
-                    file_ext = file_name.split(".")[-1].lower() if "." in file_name else ""
-                    
-                    if not file_types or file_ext in file_types:
-                        all_files.append(item)
-                        
-                        if limit and len(all_files) >= limit:
-                            break
-            
-            # Check for next page
-            url = response.get("@odata.nextLink")
-        
+        # Queue of folder URLs to process (start with root)
+        folders_to_scan = [f"{self.base_url}/me/drive/root/children"]
+
+        while folders_to_scan and (limit is None or len(all_files) < limit):
+            url = folders_to_scan.pop(0)
+
+            # Handle pagination within each folder
+            while url and (limit is None or len(all_files) < limit):
+                logger.debug(f"Fetching: {url}")
+
+                response = self._make_request(url)
+                if not response:
+                    break
+
+                items = response.get("value", [])
+
+                for item in items:
+                    if "folder" in item:
+                        # It's a folder — add to scan queue
+                        folder_id = item.get("id")
+                        folder_name = item.get("name", "Unknown")
+                        logger.info(f"Found folder: {folder_name}")
+                        folders_to_scan.append(
+                            f"{self.base_url}/me/drive/items/{folder_id}/children"
+                        )
+                    elif "file" in item:
+                        # It's a file — check extension
+                        file_name = item.get("name", "")
+                        file_ext = file_name.split(".")[-1].lower() if "." in file_name else ""
+
+                        if not file_types or file_ext in file_types:
+                            # Add folder path info for display
+                            parent = item.get("parentReference", {})
+                            item["_folder_path"] = parent.get("path", "").replace("/drive/root:", "") or "/"
+                            all_files.append(item)
+
+                            if limit and len(all_files) >= limit:
+                                break
+
+                # Check for next page within this folder
+                url = response.get("@odata.nextLink")
+
         logger.info(f"Found {len(all_files)} files in OneDrive")
         return all_files[:limit] if limit else all_files
     
@@ -378,8 +393,9 @@ def test_sharepoint_api():
         print("-" * 40)
         for i, f in enumerate(pdf_files, 1):
             name = f.get("name", "Unknown")
+            folder = f.get("_folder_path", "/")
             size_kb = f.get("size", 0) / 1024
-            print(f"  {i:3}. {name} ({size_kb:.1f} KB)")
+            print(f"  {i:3}. {name} ({size_kb:.1f} KB)  [{folder}]")
 
     # Print Word files
     if docx_files:
@@ -387,8 +403,9 @@ def test_sharepoint_api():
         print("-" * 40)
         for i, f in enumerate(docx_files, 1):
             name = f.get("name", "Unknown")
+            folder = f.get("_folder_path", "/")
             size_kb = f.get("size", 0) / 1024
-            print(f"  {i:3}. {name} ({size_kb:.1f} KB)")
+            print(f"  {i:3}. {name} ({size_kb:.1f} KB)  [{folder}]")
 
     # Summary
     print(f"\n{'='*60}")
