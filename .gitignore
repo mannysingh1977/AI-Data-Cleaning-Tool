@@ -31,7 +31,19 @@ Thumbs.db
 # Token cache
 msal_token_cache.bin
 *.cache
+token_cache.bin
+.msal_token_cache.json
+
+# Results and metadata
+results/
+metadata/
 
 # Misc
 *.log
+*.tmp
+*.temp
 .pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+*.ipynb
