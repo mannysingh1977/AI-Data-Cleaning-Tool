@@ -333,41 +333,67 @@ class SharePointClient:
 
 
 def test_sharepoint_api():
-    """Test the SharePoint API module."""
+    """Test the SharePoint API module - lists all Word and PDF files."""
     from auth import AuthenticationManager
-    
-    # Set up logging
+
+    # Set up logging (suppress info noise, only show warnings+)
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARNING,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
-    print("\n🧪 Testing SharePoint API Module\n")
-    
+
+    print("\n" + "="*60)
+    print("📂 ONEDRIVE FILE LISTING")
+    print("="*60)
+
     # Authenticate
     auth_manager = AuthenticationManager()
     token = auth_manager.get_access_token()
-    
+
     if not token:
         print("❌ Authentication failed")
         return
-    
+
     # Create SharePoint client
     sp_client = SharePointClient(token)
-    
-    # Test listing files
-    print("\n📂 Listing files from OneDrive (limit 5)...\n")
-    files = sp_client.get_all_files_recursive(limit=5)
-    
-    if files:
-        print(f"✅ Found {len(files)} files:\n")
-        for file_item in files:
-            sp_client.print_file_info(file_item)
-            print()
-    else:
-        print("❌ No files found or error occurred")
-    
-    print("\n✅ SharePoint API test completed!\n")
+
+    # Get ALL docx and pdf files (no limit)
+    files = sp_client.list_my_drive_files(file_types=["docx", "pdf"], limit=None)
+
+    if not files:
+        print("\n❌ No .docx or .pdf files found in your OneDrive")
+        return
+
+    # Separate by file type
+    pdf_files = [f for f in files if f.get("name", "").lower().endswith(".pdf")]
+    docx_files = [f for f in files if f.get("name", "").lower().endswith(".docx")]
+
+    # Sort each group alphabetically
+    pdf_files.sort(key=lambda f: f.get("name", "").lower())
+    docx_files.sort(key=lambda f: f.get("name", "").lower())
+
+    # Print PDF files
+    if pdf_files:
+        print(f"\n📕 PDF FILES ({len(pdf_files)})")
+        print("-" * 40)
+        for i, f in enumerate(pdf_files, 1):
+            name = f.get("name", "Unknown")
+            size_kb = f.get("size", 0) / 1024
+            print(f"  {i:3}. {name} ({size_kb:.1f} KB)")
+
+    # Print Word files
+    if docx_files:
+        print(f"\n📘 WORD FILES ({len(docx_files)})")
+        print("-" * 40)
+        for i, f in enumerate(docx_files, 1):
+            name = f.get("name", "Unknown")
+            size_kb = f.get("size", 0) / 1024
+            print(f"  {i:3}. {name} ({size_kb:.1f} KB)")
+
+    # Summary
+    print(f"\n{'='*60}")
+    print(f"TOTAL: {len(files)} files ({len(pdf_files)} PDF, {len(docx_files)} Word)")
+    print(f"{'='*60}\n")
 
 
 if __name__ == "__main__":
